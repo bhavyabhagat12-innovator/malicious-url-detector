@@ -8,6 +8,29 @@ import streamlit as st
 
 from features import extract_features
 
+from urllib.parse import urlparse
+
+TRUSTED_DOMAINS = {
+    "google.com", "youtube.com", "facebook.com", "instagram.com", "twitter.com",
+    "x.com", "linkedin.com", "github.com", "microsoft.com", "apple.com",
+    "amazon.com", "amazon.in", "wikipedia.org", "netflix.com", "whatsapp.com",
+    "stackoverflow.com", "reddit.com", "yahoo.com", "bing.com", "openai.com",
+    "anthropic.com", "kaggle.com", "iitm.ac.in", "nptel.ac.in", "flipkart.com",
+}
+
+
+def is_trusted(url: str) -> bool:
+    url = url.strip()
+    if "://" not in url:
+        url = "http://" + url
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except ValueError:
+        return False
+    if host.startswith("www."):
+        host = host[4:]
+    return host in TRUSTED_DOMAINS
+
 st.set_page_config(page_title="Malicious URL Detector", page_icon="🛡️")
 
 
@@ -39,6 +62,12 @@ with tab1:
             proba = predict_proba([url])[0]
             risk = 1 - proba[benign_idx]
             label = classes[int(np.argmax(proba))]
+            if is_trusted(url):
+                proba = np.zeros(len(classes))
+                proba[benign_idx] = 1.0
+                risk = 0.0
+                label = "benign"
+                st.info("This domain is on the trusted list, so the ML prediction was overridden.")
 
             if label == "benign":
                 st.success(f"Looks safe (predicted: **{label}**)")
